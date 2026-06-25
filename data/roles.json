@@ -1,0 +1,21 @@
+{
+  "owner": {
+    "name": "Owner",
+    "permissions": [
+      "view_products",
+      "manage_cart",
+      "checkout",
+      "view_orders",
+      "view_profit_loss",
+      "manage_stock",
+      "manage_roles"
+    ]
+  },
+  "stock": {
+    "name": "Stock Staff",
+    "permissions": [
+      "view_products",
+      "manage_stock"
+    ]
+  }
+}

@@ -1,0 +1,119 @@
+<?php
+require_once __DIR__ . '/functions.php';
+requirePermission('manage_roles');
+
+$roles = getRolesConfig();
+$permissions = getPermissionList();
+$currentUser = getCurrentUser();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $updatedRoles = [];
+    $submittedRoles = $_POST['roles'] ?? [];
+
+    foreach ($submittedRoles as $roleKey => $roleData) {
+        $cleanKey = preg_replace('/[^a-z0-9_\-]/i', '', strtolower(trim($roleKey)));
+        if ($cleanKey === '') {
+            continue;
+        }
+
+        $updatedRoles[$cleanKey] = [
+            'name' => trim($roleData['name'] ?? $cleanKey),
+            'permissions' => array_values(array_filter(array_map('trim', $roleData['permissions'] ?? [])))
+        ];
+    }
+
+    $newRoleName = trim($_POST['new_role_name'] ?? '');
+    if ($newRoleName !== '') {
+        $newKey = preg_replace('/[^a-z0-9_\-]/i', '', strtolower(str_replace(' ', '_', $newRoleName)));
+        if ($newKey !== '') {
+            $updatedRoles[$newKey] = [
+                'name' => $newRoleName,
+                'permissions' => []
+            ];
+        }
+    }
+
+    saveRolesConfig($updatedRoles);
+    logActivity('update_roles', ['roles' => array_keys($updatedRoles)]);
+    $roles = $updatedRoles;
+    $success = 'Role permissions were updated.';
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roles - Mini Pharmacy POS</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div>
+                    <h1>Mini Pharmacy POS</h1>
+                    <p>Admin Dashboard</p>
+                </div>
+                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle menu">☰</button>
+            </div>
+            <nav class="sidebar-nav">
+                <?= renderNavLinks('roles.php') ?>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div>
+                    <h2>Role Management</h2>
+                    <p>Customize roles and permissions</p>
+                </div>
+                <div class="topbar-user">
+                    <span><?= htmlspecialchars($currentUser['full_name'] ?? $currentUser['username']) ?></span>
+                    <span class="role-badge"><?= htmlspecialchars($currentUser['role']) ?></span>
+                </div>
+            </header>
+
+            <main class="container">
+                <section class="card wide">
+                    <h2>Role and Permission Management</h2>
+                    <?php if (!empty($success)): ?>
+                        <div class="alert success"><?= htmlspecialchars($success) ?></div>
+                    <?php endif; ?>
+
+                    <form method="post">
+                        <div class="role-list">
+                            <?php foreach ($roles as $roleKey => $role): ?>
+                                <div class="role-card">
+                                    <h3><?= htmlspecialchars($role['name'] ?? $roleKey) ?></h3>
+                                    <input type="hidden" name="roles[<?= htmlspecialchars($roleKey) ?>][name]" value="<?= htmlspecialchars($role['name'] ?? $roleKey) ?>">
+                                    <div class="permission-grid">
+                                        <?php foreach ($permissions as $permissionKey => $permissionLabel): ?>
+                                            <label class="checkbox-label">
+                                                <input type="checkbox" name="roles[<?= htmlspecialchars($roleKey) ?>][permissions][]" value="<?= htmlspecialchars($permissionKey) ?>" <?= in_array($permissionKey, $role['permissions'] ?? [], true) ? 'checked' : '' ?>>
+                                                <?= htmlspecialchars($permissionLabel) ?>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <div class="role-card">
+                            <h3>Create New Role</h3>
+                            <label>
+                                Role Name
+                                <input type="text" name="new_role_name" placeholder="e.g. Finance Staff">
+                            </label>
+                        </div>
+
+                        <button type="submit">Save Roles</button>
+                    </form>
+                </section>
+            </main>
+        </main>
+    </div>
+
+    <script src="sidebar.js"></script>
+</body>
+</html>

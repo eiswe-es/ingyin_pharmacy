@@ -1,0 +1,23 @@
+[
+    {
+        "id": 1,
+        "username": "owner",
+        "password": "owner123",
+        "role": "owner",
+        "full_name": "Owner"
+    },
+    {
+        "id": 2,
+        "username": "stock",
+        "password": "stock123",
+        "role": "stock",
+        "full_name": "Stock Staff"
+    },
+    {
+        "id": 1782360462,
+        "username": "ei_swe",
+        "password": "eiswe123",
+        "role": "owner",
+        "full_name": "Ei Swe"
+    }
+]

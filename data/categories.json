@@ -1,0 +1,22 @@
+{
+    "pain-relief": {
+        "id": "pain-relief",
+        "name": "Pain Relief"
+    },
+    "antibiotic": {
+        "id": "antibiotic",
+        "name": "Antibiotic"
+    },
+    "cold-flu": {
+        "id": "cold-flu",
+        "name": "Cold & Flu"
+    },
+    "supplements": {
+        "id": "supplements",
+        "name": "Supplements"
+    },
+    "digestive": {
+        "id": "digestive",
+        "name": "Digestive"
+    }
+}

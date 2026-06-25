@@ -1,0 +1,19 @@
+[
+    {
+        "id": 1782370002,
+        "customer_name": "A",
+        "phone": "09782804984",
+        "payment_method": "Cash",
+        "items": [
+            {
+                "id": "paracetamol",
+                "name": "Paracetamol 500mg",
+                "price": 8.5,
+                "quantity": 1,
+                "line_total": 8.5
+            }
+        ],
+        "total": 8.5,
+        "created_at": "2026-06-25 08:46:42"
+    }
+]
