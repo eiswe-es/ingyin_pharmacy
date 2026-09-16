@@ -328,6 +328,40 @@ button.danger {
     overflow-x: auto;
 }
 
+.table-wrap {
+    overflow-x: auto;
+}
+
+.data-table {
+    display: table;
+    margin-top: 18px;
+}
+
+.data-table th {
+    background: #f7f9fc;
+    color: #637386;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.data-table tbody tr:hover {
+    background: #fbfcfe;
+}
+
+.table-subtext {
+    display: block;
+    color: #8290a0;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.muted {
+    color: #6b7a8f;
+    margin: 4px 0 0;
+    font-size: 13px;
+}
+
 .table th,
 .table td {
     padding: 10px;
@@ -427,6 +461,28 @@ button.danger {
     gap: 8px;
     align-items: center;
     flex-wrap: wrap;
+}
+
+.icon-button {
+    align-items: center;
+    display: inline-flex;
+    height: 36px;
+    justify-content: center;
+    padding: 8px;
+    width: 36px;
+}
+
+.icon-button span {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.icon-button.primary {
+    font-size: 24px;
+}
+
+.data-table form {
+    margin: 0;
 }
 
 .product-actions {
@@ -598,6 +654,12 @@ button.danger {
     .inline-actions {
         flex-direction: column;
         width: 100%;
+    }
+
+    .inline-actions .icon-button,
+    .actions .icon-button {
+        flex: 0 0 36px;
+        width: 36px;
     }
 
     .dashboard-stats {

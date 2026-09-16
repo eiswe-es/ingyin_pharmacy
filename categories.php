@@ -22,26 +22,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'This category already exists or the name is invalid.';
             }
         }
-    } elseif (isset($_POST['update_categories'])) {
-        $updatedCategories = [];
-        foreach ($categories as $key => $category) {
-            $submitted = $_POST['categories'][$key] ?? [];
-            $name = trim($submitted['name'] ?? $category['name']);
-            if ($name === '') {
-                $error = 'Category names cannot be empty.';
-                break;
+    } elseif (isset($_POST['update_category'])) {
+        $categoryId = trim($_POST['category_id'] ?? '');
+        $name = trim($_POST['name'] ?? '');
+        if ($categoryId === '' || $name === '' || !isset($categories[$categoryId])) {
+            $error = 'Please provide a valid category name.';
+        } else {
+            $oldName = $categories[$categoryId]['name'];
+            if (updateCategory($categoryId, $name)) {
+                logActivity('update_category', ['category_id' => $categoryId, 'old_name' => $oldName]);
+                $success = 'Category updated successfully.';
+                $categories = getCategories();
+            } else {
+                $error = 'Unable to update the selected category.';
             }
-            $updatedCategories[$key] = [
-                'id' => $key,
-                'name' => $name,
-            ];
-        }
-
-        if ($error === '') {
-            saveCategories($updatedCategories);
-            logActivity('update_categories', ['count' => count($updatedCategories)]);
-            $success = 'Categories updated successfully.';
-            $categories = getCategories();
         }
     } elseif (isset($_POST['delete_category'])) {
         $deleteId = trim($_POST['delete_id'] ?? '');
@@ -92,52 +86,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <main class="container">
                 <section class="card wide">
-                    <h2>Product Categories</h2>
+                    <div class="card-header">
+                        <div>
+                            <h2>Product Categories</h2>
+                            <p class="muted">Organize products with reusable categories.</p>
+                        </div>
+                        <button type="button" class="icon-button primary" id="openCreateCategoryModal" title="Add a new category" aria-label="Add a new category"><span aria-hidden="true">+</span></button>
+                    </div>
                     <?php if ($success !== ''): ?><div class="alert success"><?= htmlspecialchars($success) ?></div><?php endif; ?>
                     <?php if ($error !== ''): ?><div class="alert error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
-                    <form method="post">
-                        <table class="table">
+                    <div class="table-wrap">
+                        <table class="table data-table">
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Category Name</th>
-                                    <th>Delete</th>
+                                    <th>Category</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($categories as $key => $category): ?>
                                     <tr>
                                         <td><?= htmlspecialchars($key) ?></td>
+                                        <td><strong><?= htmlspecialchars($category['name']) ?></strong></td>
                                         <td>
-                                            <input type="text" name="categories[<?= htmlspecialchars($key) ?>][name]" value="<?= htmlspecialchars($category['name']) ?>">
-                                        </td>
-                                        <td>
-                                            <button type="submit" name="delete_category" class="danger">Delete</button>
-                                            <input type="hidden" name="delete_id" value="<?= htmlspecialchars($key) ?>">
+                                            <div class="inline-actions">
+                                                <button type="button" class="icon-button secondary edit-category-btn" title="Edit category" aria-label="Edit <?= htmlspecialchars($category['name']) ?>" data-id="<?= htmlspecialchars($key, ENT_QUOTES) ?>" data-name="<?= htmlspecialchars($category['name'], ENT_QUOTES) ?>"><span aria-hidden="true">&#9998;</span></button>
+                                                <form method="post" onsubmit="return confirm('Delete this category?');"><input type="hidden" name="delete_id" value="<?= htmlspecialchars($key) ?>"><button type="submit" name="delete_category" class="icon-button danger" title="Delete category" aria-label="Delete <?= htmlspecialchars($category['name']) ?>"><span aria-hidden="true">&#128465;</span></button></form>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
-                        <button type="submit" name="update_categories">Save Categories</button>
-                    </form>
+                    </div>
 
-                    <hr>
-
-                    <h3>Create New Category</h3>
-                    <form method="post" class="checkout-form">
+                    <div class="modal-overlay" id="categoryModal" style="display: none;">
+                        <div class="modal-card">
+                            <div class="modal-header"><h3 id="categoryModalTitle">Create New Category</h3><button type="button" class="modal-close" id="closeCategoryModal" aria-label="Close">&times;</button></div>
+                            <form method="post" class="checkout-form">
+                                <input type="hidden" name="category_id" id="categoryIdInput">
                         <label>
                             Category Name
-                            <input type="text" name="name" required>
+                            <input type="text" name="name" id="categoryNameInput" required>
                         </label>
-                        <button type="submit" name="create_category">Create Category</button>
-                    </form>
+                                <div class="actions"><button type="button" class="secondary" id="cancelCategoryModal">Cancel</button><button type="submit" name="create_category" id="categorySubmitBtn">Create Category</button></div>
+                            </form>
+                        </div>
+                    </div>
                 </section>
             </main>
         </main>
     </div>
 
     <script src="sidebar.js"></script>
+    <script>
+        const categoryModal = document.getElementById('categoryModal');
+        const categoryModalTitle = document.getElementById('categoryModalTitle');
+        const categorySubmitBtn = document.getElementById('categorySubmitBtn');
+        const categoryIdInput = document.getElementById('categoryIdInput');
+        const categoryNameInput = document.getElementById('categoryNameInput');
+
+        function openCategoryModal(mode, button) {
+            const editing = mode === 'edit';
+            categoryModalTitle.textContent = editing ? 'Edit Category' : 'Create New Category';
+            categorySubmitBtn.textContent = editing ? 'Save Changes' : 'Create Category';
+            categorySubmitBtn.name = editing ? 'update_category' : 'create_category';
+            categoryIdInput.value = editing ? button.dataset.id : '';
+            categoryNameInput.value = editing ? button.dataset.name : '';
+            categoryModal.style.display = 'flex';
+        }
+
+        document.getElementById('openCreateCategoryModal')?.addEventListener('click', () => openCategoryModal('create'));
+        document.querySelectorAll('.edit-category-btn').forEach((button) => button.addEventListener('click', () => openCategoryModal('edit', button)));
+        document.getElementById('closeCategoryModal')?.addEventListener('click', () => { categoryModal.style.display = 'none'; });
+        document.getElementById('cancelCategoryModal')?.addEventListener('click', () => { categoryModal.style.display = 'none'; });
+        categoryModal?.addEventListener('click', (event) => { if (event.target === categoryModal) categoryModal.style.display = 'none'; });
+    </script>
 </body>
 </html>

@@ -94,7 +94,7 @@ $currentUser = getCurrentUser();
                                             <td><?= formatCurrency($item['line_total']) ?></td>
                                             <td>
                                                 <div class="inline-actions">
-                                                    <button type="submit" name="remove_item" value="1">Remove</button>
+                                                    <button type="submit" name="remove_item" value="1" class="icon-button danger" title="Remove item" aria-label="Remove <?= htmlspecialchars($item['name']) ?>"><span aria-hidden="true">&#128465;</span></button>
                                                     <input type="hidden" name="product_id" value="<?= htmlspecialchars($item['id']) ?>">
                                                 </div>
                                             </td>
@@ -104,8 +104,8 @@ $currentUser = getCurrentUser();
                             </table>
 
                             <div class="actions">
-                                <button type="submit" name="update_cart" class="secondary">Update Cart</button>
-                                <button type="submit" name="clear_cart" class="danger">Clear Cart</button>
+                                <button type="submit" name="update_cart" class="icon-button secondary" title="Update cart quantities" aria-label="Update cart quantities"><span aria-hidden="true">&#8635;</span></button>
+                                <button type="submit" name="clear_cart" class="icon-button danger" title="Clear cart" aria-label="Clear cart"><span aria-hidden="true">&#128465;</span></button>
                             </div>
                         </form>
 

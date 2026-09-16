@@ -88,11 +88,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <main class="container">
                 <section class="card wide">
-                    <h2>Record Purchase</h2>
+                    <div class="card-header">
+                        <div>
+                            <h2>Purchase Ledger</h2>
+                            <p class="muted">Track supplier purchases and stock updates.</p>
+                        </div>
+                        <button type="button" class="icon-button primary" id="openPurchaseModal" title="Record a new purchase" aria-label="Record a new purchase"><span aria-hidden="true">+</span></button>
+                    </div>
                     <?php if ($message !== ''): ?><div class="alert success"><?= htmlspecialchars($message) ?></div><?php endif; ?>
                     <?php if ($error !== ''): ?><div class="alert error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
-                    <form method="post" class="checkout-form">
+                    <div class="modal-overlay" id="purchaseModal" style="display: none;">
+                        <div class="modal-card">
+                            <div class="modal-header"><h3>Record Purchase</h3><button type="button" class="modal-close" id="closePurchaseModal" aria-label="Close">&times;</button></div>
+                            <form method="post" class="checkout-form">
                         <label>
                             Product
                             <select name="product_id" required>
@@ -134,14 +143,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             Notes
                             <textarea name="notes"></textarea>
                         </label>
-                        <button type="submit">Save Purchase</button>
-                    </form>
+                                <div class="actions"><button type="button" class="secondary" id="cancelPurchaseModal">Cancel</button><button type="submit" class="icon-button primary" title="Save purchase" aria-label="Save purchase"><span aria-hidden="true">&#10003;</span></button></div>
+                            </form>
+                        </div>
+                    </div>
                 </section>
 
                 <section class="card wide">
                     <h2>Purchase History</h2>
                     <?php if ($purchases): ?>
-                        <table class="table">
+                        <table class="table data-table">
                             <thead>
                                 <tr>
                                     <th>Date</th>
@@ -178,5 +189,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script src="sidebar.js"></script>
+    <script>
+        const purchaseModal = document.getElementById('purchaseModal');
+        document.getElementById('openPurchaseModal')?.addEventListener('click', () => { purchaseModal.style.display = 'flex'; });
+        document.getElementById('closePurchaseModal')?.addEventListener('click', () => { purchaseModal.style.display = 'none'; });
+        document.getElementById('cancelPurchaseModal')?.addEventListener('click', () => { purchaseModal.style.display = 'none'; });
+        purchaseModal?.addEventListener('click', (event) => { if (event.target === purchaseModal) purchaseModal.style.display = 'none'; });
+    </script>
 </body>
 </html>

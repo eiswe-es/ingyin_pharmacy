@@ -99,21 +99,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <?php endforeach; ?>
                         </div>
 
-                        <div class="role-card">
-                            <h3>Create New Role</h3>
-                            <label>
-                                Role Name
-                                <input type="text" name="new_role_name" placeholder="e.g. Finance Staff">
-                            </label>
-                        </div>
-
-                        <button type="submit">Save Roles</button>
+                        <button type="submit" class="icon-button primary" title="Save role permissions" aria-label="Save role permissions"><span aria-hidden="true">&#10003;</span></button>
                     </form>
+                    <button type="button" class="icon-button primary" id="openCreateRoleModal" title="Add a new role" aria-label="Add a new role"><span aria-hidden="true">+</span></button>
+
+                    <div class="modal-overlay" id="roleModal" style="display: none;">
+                        <div class="modal-card">
+                            <div class="modal-header"><h3>Create New Role</h3><button type="button" class="modal-close" id="closeRoleModal" aria-label="Close">&times;</button></div>
+                            <form method="post" class="checkout-form">
+                                <?php foreach ($roles as $roleKey => $role): ?>
+                                    <input type="hidden" name="roles[<?= htmlspecialchars($roleKey) ?>][name]" value="<?= htmlspecialchars($role['name'] ?? $roleKey) ?>">
+                                    <?php foreach ($role['permissions'] ?? [] as $permissionKey): ?><input type="hidden" name="roles[<?= htmlspecialchars($roleKey) ?>][permissions][]" value="<?= htmlspecialchars($permissionKey) ?>"><?php endforeach; ?>
+                                <?php endforeach; ?>
+                                <label>Role Name<input type="text" name="new_role_name" placeholder="e.g. Finance Staff" required></label>
+                                <div class="actions"><button type="button" class="secondary" id="cancelRoleModal">Cancel</button><button type="submit" class="icon-button primary" title="Create role" aria-label="Create role"><span aria-hidden="true">&#10003;</span></button></div>
+                            </form>
+                        </div>
+                    </div>
                 </section>
             </main>
         </main>
     </div>
 
     <script src="sidebar.js"></script>
+    <script>
+        const roleModal = document.getElementById('roleModal');
+        document.getElementById('openCreateRoleModal')?.addEventListener('click', () => { roleModal.style.display = 'flex'; });
+        document.getElementById('closeRoleModal')?.addEventListener('click', () => { roleModal.style.display = 'none'; });
+        document.getElementById('cancelRoleModal')?.addEventListener('click', () => { roleModal.style.display = 'none'; });
+        roleModal?.addEventListener('click', (event) => { if (event.target === roleModal) roleModal.style.display = 'none'; });
+    </script>
 </body>
 </html>

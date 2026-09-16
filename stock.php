@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php endif; ?>
 
                     <form method="post">
-                        <table class="table">
+                        <table class="table data-table">
                             <thead>
                                 <tr>
                                     <th>Product</th>
@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
-                        <button type="submit">Save Stock</button>
+                        <button type="submit" class="icon-button primary" title="Save stock changes" aria-label="Save stock changes"><span aria-hidden="true">&#10003;</span></button>
                     </form>
                 </section>
             </main>

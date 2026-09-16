@@ -241,7 +241,7 @@ foreach (loadOrders() as $order) {
                         </form>
                         <?php if ($search !== ''): ?><a class="btn secondary" href="index.php">Clear</a><?php endif; ?>
                         <?php if (userHasPermission('manage_stock')): ?>
-                            <button type="button" class="btn" id="openCreateModalBtn">Add Product</button>
+                            <button type="button" class="icon-button primary" id="openCreateModalBtn" title="Add a new product" aria-label="Add a new product"><span aria-hidden="true">+</span></button>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -268,11 +268,11 @@ foreach (loadOrders() as $order) {
                                             <form method="post" class="inline-actions">
                                                 <input type="hidden" name="product_id" value="<?= htmlspecialchars($product['id']) ?>">
                                                 <input type="number" name="quantity" value="1" min="1" max="<?= max(1, (int)($product['stock'] ?? 0)) ?>" aria-label="Quantity for <?= htmlspecialchars($product['name']) ?>">
-                                                <button type="submit" name="add_to_cart">Add to Cart</button>
+                                                <button type="submit" name="add_to_cart" class="icon-button primary" title="Add product to cart" aria-label="Add <?= htmlspecialchars($product['name']) ?> to cart"><span aria-hidden="true">+</span></button>
                                             </form>
                                         <?php endif; ?>
                                         <?php if (userHasPermission('manage_stock')): ?>
-                                            <button type="button" class="secondary edit-product-btn"
+                                                <button type="button" class="icon-button secondary edit-product-btn" title="Edit product" aria-label="Edit <?= htmlspecialchars($product['name']) ?>"
                                                 data-id="<?= htmlspecialchars($product['id'], ENT_QUOTES) ?>"
                                                 data-name="<?= htmlspecialchars($product['name'], ENT_QUOTES) ?>"
                                                 data-category="<?= htmlspecialchars($product['category'], ENT_QUOTES) ?>"
@@ -284,11 +284,11 @@ foreach (loadOrders() as $order) {
                                                 data-stock="<?= htmlspecialchars((string)$product['stock'], ENT_QUOTES) ?>"
                                                 data-reorder-level="<?= htmlspecialchars((string)getProductReorderLevel($product), ENT_QUOTES) ?>"
                                                 data-barcode="<?= htmlspecialchars($product['barcode'] ?? '', ENT_QUOTES) ?>">
-                                                Edit
+                                                <span aria-hidden="true">&#9998;</span>
                                             </button>
                                             <form method="post" onsubmit="return confirm('Move this product to temporary delete?');" class="inline-actions">
                                                 <input type="hidden" name="product_id" value="<?= htmlspecialchars($product['id']) ?>">
-                                                <button type="submit" name="delete_product" class="danger">Delete</button>
+                                                <button type="submit" name="delete_product" class="icon-button danger" title="Delete product" aria-label="Delete <?= htmlspecialchars($product['name']) ?>"><span aria-hidden="true">&#128465;</span></button>
                                             </form>
                                         <?php endif; ?>
                                     </div>

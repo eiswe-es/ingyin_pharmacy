@@ -12,5 +12,19 @@
         "unit_type": "each",
         "reorder_level": 10,
         "barcode": ""
+    },
+    "supplements-001": {
+        "id": "supplements-001",
+        "name": "Vit C -500",
+        "price": 2500,
+        "selling_price": 2500,
+        "stock": 5,
+        "category": "Supplements",
+        "supplier": "",
+        "purchase_price": 2000,
+        "expiry_date": "2027-11-16",
+        "unit_type": "box",
+        "reorder_level": 2,
+        "barcode": ""
     }
 }

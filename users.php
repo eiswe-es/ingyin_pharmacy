@@ -32,25 +32,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = 'User created successfully.';
             $users = getUsersConfig();
         }
-    } elseif (isset($_POST['update_users'])) {
-        $updatedUsers = [];
-        foreach ($users as $user) {
-            $userId = (string)$user['id'];
-            $submitted = $_POST['users'][$userId] ?? [];
-            $updatedUser = $user;
-            $updatedUser['full_name'] = trim($submitted['full_name'] ?? $user['full_name']);
-            $updatedUser['role'] = trim($submitted['role'] ?? $user['role']);
-            $newPassword = trim($submitted['password'] ?? '');
-            if ($newPassword !== '') {
-                $updatedUser['password'] = $newPassword;
+    } elseif (isset($_POST['update_user'])) {
+        $userId = (string)($_POST['user_id'] ?? '');
+        foreach ($users as $index => $user) {
+            if ((string)$user['id'] !== $userId) {
+                continue;
             }
-            $updatedUsers[] = $updatedUser;
+            $users[$index]['full_name'] = trim($_POST['full_name'] ?? $user['full_name']);
+            $users[$index]['role'] = trim($_POST['role'] ?? $user['role']);
+            $newPassword = trim($_POST['password'] ?? '');
+            if ($newPassword !== '') {
+                $users[$index]['password'] = $newPassword;
+            }
+            saveUsersConfig($users);
+            logActivity('update_user', ['username' => $user['username']]);
+            $success = 'Staff account updated.';
+            break;
         }
-
-        saveUsersConfig($updatedUsers);
-        logActivity('update_users', ['count' => count($updatedUsers)]);
-        $success = 'Staff access updated.';
         $users = getUsersConfig();
+    } elseif (isset($_POST['delete_user'])) {
+        $userId = (string)($_POST['user_id'] ?? '');
+        $currentUserId = (string)($currentUser['id'] ?? '');
+        $remainingUsers = array_values(array_filter($users, static fn (array $user): bool => (string)$user['id'] !== $userId));
+        if ($userId === '' || count($remainingUsers) === count($users) || $userId === $currentUserId) {
+            $error = 'You cannot delete the current account or an invalid user.';
+        } else {
+            saveUsersConfig($remainingUsers);
+            logActivity('delete_user', ['user_id' => $userId]);
+            $success = 'Staff account deleted.';
+            $users = getUsersConfig();
+        }
     }
 }
 ?>
@@ -91,48 +102,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <main class="container">
                 <section class="card wide">
-                    <h2>Staff Accounts</h2>
+                    <div class="card-header">
+                        <div>
+                            <h2>Staff Accounts</h2>
+                            <p class="muted">Manage staff access and account details.</p>
+                        </div>
+                        <button type="button" class="icon-button primary" id="openCreateUserModal" title="Add a new staff user" aria-label="Add a new staff user"><span aria-hidden="true">+</span></button>
+                    </div>
                     <?php if ($success !== ''): ?><div class="alert success"><?= htmlspecialchars($success) ?></div><?php endif; ?>
                     <?php if ($error !== ''): ?><div class="alert error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
-                    <form method="post">
-                        <table class="table">
+                    <div class="table-wrap">
+                        <table class="table data-table">
                             <thead>
                                 <tr>
-                                    <th>Full Name</th>
+                                    <th>Staff Member</th>
                                     <th>Username</th>
                                     <th>Role</th>
-                                    <th>New Password</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($users as $user): ?>
                                     <tr>
-                                        <td>
-                                            <input type="text" name="users[<?= (int)$user['id'] ?>][full_name]" value="<?= htmlspecialchars($user['full_name'] ?? '') ?>">
-                                        </td>
+                                        <td><strong><?= htmlspecialchars($user['full_name'] ?? '') ?></strong><small class="table-subtext">ID <?= (int)$user['id'] ?></small></td>
                                         <td><?= htmlspecialchars($user['username']) ?></td>
                                         <td>
-                                            <select name="users[<?= (int)$user['id'] ?>][role]">
-                                                <?php foreach ($roles as $roleKey => $role): ?>
-                                                    <option value="<?= htmlspecialchars($roleKey) ?>" <?= ($user['role'] ?? '') === $roleKey ? 'selected' : '' ?>><?= htmlspecialchars($role['name'] ?? $roleKey) ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
+                                            <span class="tag"><?= htmlspecialchars($roles[$user['role']]['name'] ?? $user['role']) ?></span>
                                         </td>
                                         <td>
-                                            <input type="password" name="users[<?= (int)$user['id'] ?>][password]" placeholder="Leave blank to keep">
+                                            <div class="inline-actions">
+                                                <button type="button" class="icon-button secondary edit-user-btn" title="Edit staff account" aria-label="Edit <?= htmlspecialchars($user['full_name'] ?? $user['username']) ?>" data-id="<?= (int)$user['id'] ?>" data-name="<?= htmlspecialchars($user['full_name'] ?? '', ENT_QUOTES) ?>" data-username="<?= htmlspecialchars($user['username'], ENT_QUOTES) ?>" data-role="<?= htmlspecialchars($user['role'] ?? '', ENT_QUOTES) ?>"><span aria-hidden="true">&#9998;</span></button>
+                                                <?php if ((string)($user['id'] ?? '') !== (string)($currentUser['id'] ?? '')): ?>
+                                                    <form method="post" onsubmit="return confirm('Delete this staff account?');"><input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>"><button type="submit" name="delete_user" class="icon-button danger" title="Delete staff account" aria-label="Delete <?= htmlspecialchars($user['full_name'] ?? $user['username']) ?>"><span aria-hidden="true">&#128465;</span></button></form>
+                                                <?php endif; ?>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
-                        <button type="submit" name="update_users">Save Staff Access</button>
-                    </form>
+                    </div>
 
-                    <hr>
-
-                    <h3>Create New Staff User</h3>
-                    <form method="post" class="checkout-form">
+                    <div class="modal-overlay" id="userModal" style="display: none;">
+                        <div class="modal-card">
+                            <div class="modal-header"><h3 id="userModalTitle">Create New Staff User</h3><button type="button" class="modal-close" id="closeUserModal" aria-label="Close">&times;</button></div>
+                            <form method="post" class="checkout-form">
+                                <input type="hidden" name="user_id" id="userIdInput">
                         <label>
                             Full Name
                             <input type="text" name="full_name" required>
@@ -153,13 +169,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <?php endforeach; ?>
                             </select>
                         </label>
-                        <button type="submit" name="create_user">Create User</button>
-                    </form>
+                                <div class="actions"><button type="button" class="secondary" id="cancelUserModal">Cancel</button><button type="submit" name="create_user" id="userSubmitBtn">Create User</button></div>
+                            </form>
+                        </div>
+                    </div>
                 </section>
             </main>
         </main>
     </div>
 
     <script src="sidebar.js"></script>
+    <script>
+        const userModal = document.getElementById('userModal');
+        const userModalTitle = document.getElementById('userModalTitle');
+        const userSubmitBtn = document.getElementById('userSubmitBtn');
+        const userIdInput = document.getElementById('userIdInput');
+        const userNameInput = document.querySelector('#userModal [name="full_name"]');
+        const userUsernameInput = document.querySelector('#userModal [name="username"]');
+        const userPasswordInput = document.querySelector('#userModal [name="password"]');
+        const userRoleInput = document.querySelector('#userModal [name="role"]');
+
+        function openUserModal(mode, button) {
+            const editing = mode === 'edit';
+            userModalTitle.textContent = editing ? 'Edit Staff Account' : 'Create New Staff User';
+            userSubmitBtn.textContent = editing ? 'Save Changes' : 'Create User';
+            userSubmitBtn.name = editing ? 'update_user' : 'create_user';
+            userIdInput.value = editing ? button.dataset.id : '';
+            userNameInput.value = editing ? button.dataset.name : '';
+            userUsernameInput.value = editing ? button.dataset.username : '';
+            userUsernameInput.readOnly = editing;
+            userPasswordInput.value = '';
+            userPasswordInput.required = !editing;
+            userRoleInput.value = editing ? button.dataset.role : userRoleInput.options[0]?.value || '';
+            userModal.style.display = 'flex';
+        }
+
+        document.getElementById('openCreateUserModal')?.addEventListener('click', () => openUserModal('create'));
+        document.querySelectorAll('.edit-user-btn').forEach((button) => button.addEventListener('click', () => openUserModal('edit', button)));
+        document.getElementById('closeUserModal')?.addEventListener('click', () => { userModal.style.display = 'none'; });
+        document.getElementById('cancelUserModal')?.addEventListener('click', () => { userModal.style.display = 'none'; });
+        userModal?.addEventListener('click', (event) => { if (event.target === userModal) userModal.style.display = 'none'; });
+    </script>
 </body>
 </html>

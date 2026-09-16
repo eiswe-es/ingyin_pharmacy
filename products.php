@@ -60,22 +60,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = 'Product created successfully.';
             $products = getProducts();
         }
-    } elseif (isset($_POST['update_products'])) {
-        $updatedProducts = [];
-        foreach ($products as $key => $product) {
-            $submitted = $_POST['products'][$key] ?? [];
-            $updatedProduct = $product;
-            $updatedProduct['name'] = trim($submitted['name'] ?? $product['name']);
-            $updatedProduct['price'] = (float)($submitted['price'] ?? $product['price']);
-            $updatedProduct['stock'] = (int)($submitted['stock'] ?? $product['stock']);
-            $updatedProduct['category'] = trim($submitted['category'] ?? $product['category']);
-            $updatedProducts[$key] = $updatedProduct;
+    } elseif (isset($_POST['update_product'])) {
+        $productId = trim($_POST['current_product_id'] ?? '');
+        if ($productId !== '' && isset($products[$productId])) {
+            $product = $products[$productId];
+            $product['name'] = trim($_POST['name'] ?? $product['name']);
+            $product['price'] = (float)($_POST['selling_price'] ?? $product['price']);
+            $product['selling_price'] = $product['price'];
+            $product['stock'] = (int)($_POST['stock'] ?? $product['stock']);
+            $product['category'] = trim($_POST['category'] ?? $product['category']);
+            $product['supplier'] = trim($_POST['supplier'] ?? ($product['supplier'] ?? ''));
+            $product['purchase_price'] = (float)($_POST['purchase_price'] ?? ($product['purchase_price'] ?? 0));
+            $product['expiry_date'] = trim($_POST['expiry_date'] ?? ($product['expiry_date'] ?? ''));
+            $product['unit_type'] = trim($_POST['unit_type'] ?? ($product['unit_type'] ?? 'each'));
+            $products[$productId] = $product;
+            saveProducts($products);
+            logActivity('update_product', ['product_id' => $productId]);
+            $success = 'Product updated successfully.';
+            $products = getProducts();
+        } else {
+            $error = 'Unable to update the selected product.';
         }
-
-        saveProducts($updatedProducts);
-        logActivity('update_products', ['count' => count($updatedProducts)]);
-        $success = 'Products updated successfully.';
-        $products = getProducts();
     } elseif (isset($_POST['delete_product'])) {
         $deleteKey = trim($_POST['delete_key'] ?? '');
         if ($deleteKey !== '' && isset($products[$deleteKey])) {
@@ -127,67 +132,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <main class="container">
                 <section class="card wide">
-                    <h2>Product Management</h2>
+                    <div class="card-header">
+                        <div>
+                            <h2>Product Management</h2>
+                            <p class="muted">View and maintain your pharmacy inventory.</p>
+                        </div>
+                        <button type="button" class="icon-button primary" id="openCreateProductModal" title="Add a new product" aria-label="Add a new product"><span aria-hidden="true">+</span></button>
+                    </div>
                     <?php if ($success !== ''): ?><div class="alert success"><?= htmlspecialchars($success) ?></div><?php endif; ?>
                     <?php if ($error !== ''): ?><div class="alert error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
-                    <form method="post">
-                        <table class="table">
+                    <div class="table-wrap">
+                        <table class="table data-table">
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Name</th>
+                                    <th>Product</th>
                                     <th>Category</th>
                                     <th>Price</th>
                                     <th>Stock</th>
-                                    <th>Delete</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($products as $key => $product): ?>
                                     <tr>
                                         <td><?= htmlspecialchars($key) ?></td>
+                                        <td><strong><?= htmlspecialchars($product['name']) ?></strong><small class="table-subtext"><?= htmlspecialchars($key) ?></small></td>
+                                        <td><span class="tag"><?= htmlspecialchars($product['category'] ?? 'Uncategorized') ?></span></td>
+                                        <td><?= formatCurrency((float)($product['selling_price'] ?? $product['price'] ?? 0)) ?></td>
+                                        <td><?= htmlspecialchars(formatStockValue($product)) ?></td>
                                         <td>
-                                            <input type="text" name="products[<?= htmlspecialchars($key) ?>][name]" value="<?= htmlspecialchars($product['name']) ?>">
-                                        </td>
-                                        <td>
-                                            <div class="custom-select">
-                                                <button type="button" class="select-trigger">
-                                                    <span class="select-label"><?= htmlspecialchars($product['category'] ?? 'Select category') ?></span>
-                                                    <span class="select-arrow">▾</span>
-                                                </button>
-                                                <div class="select-options">
-                                                    <?php foreach ($categories as $category): ?>
-                                                        <button type="button" class="select-option" data-value="<?= htmlspecialchars($category['name']) ?>"><?= htmlspecialchars($category['name']) ?></button>
-                                                    <?php endforeach; ?>
-                                                    <?php if (!empty($product['category']) && !isset($categoryLookup[$product['category']])): ?>
-                                                        <button type="button" class="select-option" data-value="<?= htmlspecialchars($product['category']) ?>"><?= htmlspecialchars($product['category']) ?></button>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <input type="hidden" name="products[<?= htmlspecialchars($key) ?>][category]" value="<?= htmlspecialchars($product['category'] ?? '') ?>">
+                                            <div class="inline-actions">
+                                                <button type="button" class="icon-button secondary edit-product-btn" title="Edit product" aria-label="Edit <?= htmlspecialchars($product['name']) ?>" data-id="<?= htmlspecialchars($key, ENT_QUOTES) ?>" data-name="<?= htmlspecialchars($product['name'], ENT_QUOTES) ?>" data-category="<?= htmlspecialchars($product['category'] ?? '', ENT_QUOTES) ?>" data-selling-price="<?= htmlspecialchars((string)($product['selling_price'] ?? $product['price'] ?? 0), ENT_QUOTES) ?>" data-purchase-price="<?= htmlspecialchars((string)($product['purchase_price'] ?? 0), ENT_QUOTES) ?>" data-supplier="<?= htmlspecialchars($product['supplier'] ?? '', ENT_QUOTES) ?>" data-expiry-date="<?= htmlspecialchars($product['expiry_date'] ?? '', ENT_QUOTES) ?>" data-unit-type="<?= htmlspecialchars($product['unit_type'] ?? 'each', ENT_QUOTES) ?>" data-stock="<?= (int)$product['stock'] ?>"><span aria-hidden="true">&#9998;</span></button>
+                                                <form method="post" onsubmit="return confirm('Delete this product?');"><input type="hidden" name="delete_key" value="<?= htmlspecialchars($key) ?>"><button type="submit" name="delete_product" class="icon-button danger" title="Delete product" aria-label="Delete <?= htmlspecialchars($product['name']) ?>"><span aria-hidden="true">&#128465;</span></button></form>
                                             </div>
-                                        </td>
-                                        <td>
-                                            <input type="number" step="0.01" name="products[<?= htmlspecialchars($key) ?>][price]" value="<?= htmlspecialchars((string)$product['price']) ?>">
-                                        </td>
-                                        <td>
-                                            <input type="number" name="products[<?= htmlspecialchars($key) ?>][stock]" value="<?= (int)$product['stock'] ?>">
-                                        </td>
-                                        <td>
-                                            <button type="submit" name="delete_product" class="danger">Delete</button>
-                                            <input type="hidden" name="delete_key" value="<?= htmlspecialchars($key) ?>">
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
-                        <button type="submit" name="update_products">Save Changes</button>
-                    </form>
+                    </div>
 
-                    <hr>
-
-                    <h3>Add New Product</h3>
-                    <form method="post" class="checkout-form">
+                    <div class="modal-overlay" id="productModal" style="display: none;">
+                        <div class="modal-card">
+                            <div class="modal-header"><h3 id="productModalTitle">Add New Product</h3><button type="button" class="modal-close" id="closeProductModal" aria-label="Close">&times;</button></div>
+                            <form method="post" class="checkout-form">
+                                <input type="hidden" name="current_product_id" id="currentProductId">
                         <label>
                             Product ID
                             <input type="text" name="product_id" id="productIdInput" readonly>
@@ -198,18 +189,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </label>
                         <label>
                             Category
-                            <div class="custom-select">
-                                <button type="button" class="select-trigger">
-                                    <span class="select-label"><?= htmlspecialchars($categories[0]['name'] ?? 'Select category') ?></span>
-                                    <span class="select-arrow">▾</span>
-                                </button>
-                                <div class="select-options">
-                                    <?php foreach ($categories as $category): ?>
-                                        <button type="button" class="select-option" data-value="<?= htmlspecialchars($category['name']) ?>"><?= htmlspecialchars($category['name']) ?></button>
-                                    <?php endforeach; ?>
-                                </div>
-                                <input type="hidden" name="category" value="<?= htmlspecialchars($categories[0]['name'] ?? '') ?>">
-                            </div>
+                            <select name="category">
+                                <?php foreach ($categories as $category): ?>
+                                    <option value="<?= htmlspecialchars($category['name']) ?>"><?= htmlspecialchars($category['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </label>
                         <label>
                             Supplier
@@ -239,8 +223,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             Stock
                             <input type="number" name="stock" required>
                         </label>
-                        <button type="submit" name="create_product">Create Product</button>
-                    </form>
+                                <div class="actions"><button type="button" class="secondary" id="cancelProductModal">Cancel</button><button type="submit" name="create_product" id="productSubmitBtn">Create Product</button></div>
+                            </form>
+                        </div>
+                    </div>
                 </section>
             </main>
         </main>
@@ -250,7 +236,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         const categoryProductCounts = <?= json_encode($categoryProductCounts) ?>;
         const productIdInput = document.getElementById('productIdInput');
-        const categoryHiddenInput = document.querySelector('input[name="category"]');
+        const productModal = document.getElementById('productModal');
+        const productModalTitle = document.getElementById('productModalTitle');
+        const productSubmitBtn = document.getElementById('productSubmitBtn');
+        const currentProductIdInput = document.getElementById('currentProductId');
+        const categoryInput = document.querySelector('select[name="category"]');
 
         function generateProductId(category) {
             const slug = (category || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'product';
@@ -259,48 +249,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         function updateGeneratedProductId() {
-            if (productIdInput && categoryHiddenInput) {
-                productIdInput.value = generateProductId(categoryHiddenInput.value);
+            if (productIdInput && categoryInput) {
+                productIdInput.value = generateProductId(categoryInput.value);
             }
         }
 
-        document.querySelectorAll('.custom-select').forEach((select) => {
-            const trigger = select.querySelector('.select-trigger');
-            const hiddenInput = select.querySelector('input[type="hidden"]');
-            const label = select.querySelector('.select-label');
+        function openProductModal(mode, button) {
+            productModalTitle.textContent = mode === 'edit' ? 'Edit Product' : 'Add New Product';
+            productSubmitBtn.textContent = mode === 'edit' ? 'Save Changes' : 'Create Product';
+            productSubmitBtn.name = mode === 'edit' ? 'update_product' : 'create_product';
+            currentProductIdInput.value = mode === 'edit' ? button.dataset.id : '';
+            productIdInput.value = mode === 'edit' ? button.dataset.id : generateProductId(categoryInput.value);
+            document.querySelector('[name="name"]').value = mode === 'edit' ? button.dataset.name : '';
+            categoryInput.value = mode === 'edit' ? button.dataset.category : categoryInput.options[0]?.value || '';
+            document.querySelector('[name="supplier"]').value = mode === 'edit' ? button.dataset.supplier : '';
+            document.querySelector('[name="purchase_price"]').value = mode === 'edit' ? button.dataset.purchasePrice : '';
+            document.querySelector('[name="selling_price"]').value = mode === 'edit' ? button.dataset.sellingPrice : '';
+            document.querySelector('[name="unit_type"]').value = mode === 'edit' ? button.dataset.unitType : 'each';
+            document.querySelector('[name="expiry_date"]').value = mode === 'edit' ? button.dataset.expiryDate : '';
+            document.querySelector('[name="stock"]').value = mode === 'edit' ? button.dataset.stock : '';
+            productModal.style.display = 'flex';
+        }
 
-            trigger.addEventListener('click', (event) => {
-                event.stopPropagation();
-                document.querySelectorAll('.custom-select').forEach((other) => {
-                    if (other !== select) {
-                        other.classList.remove('open');
-                    }
-                });
-                select.classList.toggle('open');
-            });
-
-            select.querySelectorAll('.select-option').forEach((option) => {
-                option.addEventListener('click', () => {
-                    const value = option.getAttribute('data-value');
-                    if (label) {
-                        label.textContent = value;
-                    }
-                    if (hiddenInput) {
-                        hiddenInput.value = value;
-                    }
-                    if (hiddenInput && hiddenInput.name === 'category') {
-                        updateGeneratedProductId();
-                    }
-                    select.classList.remove('open');
-                });
-            });
-        });
-
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.custom-select').forEach((select) => {
-                select.classList.remove('open');
-            });
-        });
+        document.getElementById('openCreateProductModal')?.addEventListener('click', () => openProductModal('create'));
+        document.querySelectorAll('.edit-product-btn').forEach((button) => button.addEventListener('click', () => openProductModal('edit', button)));
+        document.getElementById('closeProductModal')?.addEventListener('click', () => { productModal.style.display = 'none'; });
+        document.getElementById('cancelProductModal')?.addEventListener('click', () => { productModal.style.display = 'none'; });
+        productModal?.addEventListener('click', (event) => { if (event.target === productModal) productModal.style.display = 'none'; });
 
         updateGeneratedProductId();
     </script>
