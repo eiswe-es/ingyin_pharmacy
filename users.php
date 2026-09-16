@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Users - Mini Pharmacy POS</title>
+    <title>Users - Ingyin Pharmacy</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div>
-                    <h1>Mini Pharmacy POS</h1>
+                    <h1>Ingyin Pharmacy</h1>
                     <p>Admin Dashboard</p>
                 </div>
                 <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle menu">☰</button>

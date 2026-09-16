@@ -20,7 +20,12 @@ body {
 }
 
 .sidebar.collapsed {
-    width: 80px;
+    width: 150px;
+}
+
+.sidebar.collapsed .menu-toggle {
+    display: block;
+    flex: 0 0 auto;
 }
 
 .sidebar-header {
@@ -189,6 +194,43 @@ body {
     border: 1px solid #e5e9ef;
 }
 
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin: 0 20px 20px;
+}
+
+.stat-card {
+    background: #fff;
+    border: 1px solid #e5e9ef;
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+
+.stat-card span {
+    display: block;
+    color: #6b7a8f;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.stat-card strong {
+    display: block;
+    color: #0f4c81;
+    font-size: 22px;
+}
+
+.inventory-alerts {
+    margin: 0 20px 20px;
+}
+
+.inventory-alerts h2 {
+    margin: 0 0 10px;
+    font-size: 18px;
+}
+
 .product-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -317,6 +359,11 @@ button.danger {
     color: #a93b3b;
 }
 
+.alert.warning {
+    background: #fff7df;
+    color: #8a6200;
+}
+
 .order-card {
     background: #f9fbfe;
     border: 1px solid #dce7f3;
@@ -394,12 +441,15 @@ button.danger {
     align-items: center;
     justify-content: center;
     padding: 20px;
+    overflow-y: auto;
     z-index: 1000;
 }
 
 .modal-card {
     background: #fff;
     width: min(560px, 100%);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
     border-radius: 14px;
     box-shadow: 0 16px 40px rgba(0,0,0,0.18);
     padding: 20px;
@@ -488,16 +538,24 @@ button.danger {
 
     .sidebar {
         width: 100%;
+        max-height: 1000px;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
     }
 
     .sidebar.collapsed {
         width: 100%;
+        max-height: 78px;
     }
 
     .topbar {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
+    }
+
+    .dashboard-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -540,5 +598,16 @@ button.danger {
     .inline-actions {
         flex-direction: column;
         width: 100%;
+    }
+
+    .dashboard-stats {
+        grid-template-columns: 1fr;
+        margin-left: 12px;
+        margin-right: 12px;
+    }
+
+    .inventory-alerts {
+        margin-left: 12px;
+        margin-right: 12px;
     }
 }

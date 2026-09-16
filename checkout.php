@@ -4,6 +4,11 @@ requirePermission('checkout');
 
 $cartItems = getCartItems();
 $cartTotal = getCartTotal();
+$discount = 0;
+$checkoutTotal = $cartTotal;
+$cashReceived = 0;
+$change = 0;
+$paymentMethod = '';
 $currentUser = getCurrentUser();
 $error = '';
 
@@ -13,9 +18,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $paymentMethod = trim($_POST['payment_method'] ?? '');
     $staffName = trim($_POST['staff_name'] ?? '');
     $generateInvoice = !empty($_POST['generate_invoice']);
+    $discount = max(0, (float)($_POST['discount'] ?? 0));
+    $checkoutTotal = max(0, round($cartTotal - $discount, 2));
+    $cashReceived = max(0, (float)($_POST['cash_received'] ?? 0));
+    $change = $paymentMethod === 'Cash' ? round($cashReceived - $checkoutTotal, 2) : 0;
 
     if ($customerName === '' || $phone === '' || $paymentMethod === '' || $staffName === '') {
         $error = 'Please fill in customer name, phone, staff name and payment method.';
+    } elseif ($discount > $cartTotal) {
+        $error = 'Discount cannot be greater than the cart subtotal.';
+    } elseif ($paymentMethod === 'Cash' && $cashReceived < $checkoutTotal) {
+        $error = 'Cash received is less than the amount due.';
     } elseif (!$cartItems) {
         $error = 'Cart is empty.';
     } else {
@@ -56,7 +69,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'staff_name' => $staffName,
                 'sold_by' => $currentUser['full_name'] ?? $currentUser['username'] ?? 'System',
                 'items' => $cartItems,
-                'total' => $cartTotal,
+                'subtotal' => $cartTotal,
+                'discount' => $discount,
+                'total' => $checkoutTotal,
+                'cash_received' => $cashReceived,
+                'change_amount' => $change,
                 'invoice_generated' => $generateInvoice,
                 'invoice_number' => $invoiceNumber,
                 'created_at' => date('Y-m-d H:i:s')
@@ -79,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checkout - Mini Pharmacy POS</title>
+    <title>Checkout - Ingyin Pharmacy</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -87,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div>
-                    <h1>Mini Pharmacy POS</h1>
+                    <h1>Ingyin Pharmacy</h1>
                     <p>Admin Dashboard</p>
                 </div>
                 <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle menu">☰</button>
@@ -131,12 +148,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </label>
                         <label>
                             Payment Method
-                            <select name="payment_method" required>
+                            <select name="payment_method" id="paymentMethodInput" required>
                                 <option value="">Select</option>
-                                <option value="Cash">Cash</option>
-                                <option value="Card">Card</option>
-                                <option value="Mobile Wallet">Mobile Wallet</option>
+                                <option value="Cash" <?= $paymentMethod === 'Cash' ? 'selected' : '' ?>>Cash</option>
+                                <option value="Card" <?= $paymentMethod === 'Card' ? 'selected' : '' ?>>Card</option>
+                                <option value="Mobile Wallet" <?= $paymentMethod === 'Mobile Wallet' ? 'selected' : '' ?>>Mobile Wallet</option>
                             </select>
+                        </label>
+                        <label>
+                            Discount
+                            <input type="number" name="discount" min="0" step="0.01" value="<?= htmlspecialchars((string)$discount) ?>">
+                        </label>
+                        <label>
+                            Cash Received
+                            <input type="number" name="cash_received" min="0" step="0.01" value="<?= htmlspecialchars((string)$cashReceived) ?>">
                         </label>
                         <label>
                             <input type="checkbox" name="generate_invoice" value="1">
@@ -144,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </label>
 
                         <div class="summary">
-                            <h3>Total: <?= formatCurrency($cartTotal) ?></h3>
+                            <h3>Subtotal: <?= formatCurrency($cartTotal) ?><br>Amount Due: <?= formatCurrency($checkoutTotal) ?><br>Change: <?= formatCurrency(max(0, $change)) ?></h3>
                             <button type="submit">Save Sale</button>
                         </div>
                     </form>

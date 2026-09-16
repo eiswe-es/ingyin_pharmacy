@@ -3,7 +3,14 @@
         "id": "pain-relief-001",
         "name": "Paracetamol 250",
         "price": 2000,
-        "stock": 2,
-        "category": "Pain Relief"
+        "stock": 50,
+        "category": "Pain Relief",
+        "selling_price": 2000,
+        "supplier": "",
+        "purchase_price": 0,
+        "expiry_date": "",
+        "unit_type": "each",
+        "reorder_level": 10,
+        "barcode": ""
     }
 }

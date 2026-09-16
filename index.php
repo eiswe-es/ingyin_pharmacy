@@ -7,9 +7,11 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_to_cart'])) {
         requirePermission('manage_cart');
-        addToCart($_POST['product_id'], (int)($_POST['quantity'] ?? 1));
-        header('Location: index.php?added=1');
-        exit;
+        if (addToCart($_POST['product_id'], (int)($_POST['quantity'] ?? 1))) {
+            header('Location: index.php?added=1');
+            exit;
+        }
+        $error = 'Unable to add this product. Check stock, expiry date and cart quantity.';
     }
 
     if (isset($_POST['create_product'])) {
@@ -22,6 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $purchasePrice = (float)($_POST['purchase_price'] ?? 0);
         $expiryDate = trim($_POST['expiry_date'] ?? '');
         $unitType = trim($_POST['unit_type'] ?? 'each');
+        $reorderLevel = max(0, (int)($_POST['reorder_level'] ?? 10));
+        $barcode = trim($_POST['barcode'] ?? '');
 
         $products = getProducts();
         $productId = trim($_POST['product_id'] ?? '');
@@ -45,6 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'purchase_price' => $purchasePrice,
                 'expiry_date' => $expiryDate,
                 'unit_type' => $unitType,
+                'reorder_level' => $reorderLevel,
+                'barcode' => $barcode,
             ];
             saveProducts($products);
             logActivity('create_product', ['product_id' => $productId, 'name' => $name]);
@@ -69,6 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $products[$currentProductId]['purchase_price'] = (float)($_POST['purchase_price'] ?? $products[$currentProductId]['purchase_price'] ?? 0);
             $products[$currentProductId]['expiry_date'] = trim($_POST['expiry_date'] ?? $products[$currentProductId]['expiry_date'] ?? '');
             $products[$currentProductId]['unit_type'] = trim($_POST['unit_type'] ?? $products[$currentProductId]['unit_type'] ?? 'each');
+            $products[$currentProductId]['reorder_level'] = max(0, (int)($_POST['reorder_level'] ?? getProductReorderLevel($products[$currentProductId])));
+            $products[$currentProductId]['barcode'] = trim($_POST['barcode'] ?? $products[$currentProductId]['barcode'] ?? '');
             saveProducts($products);
             logActivity('update_product', ['product_id' => $currentProductId]);
             header('Location: index.php?updated=1');
@@ -101,13 +109,37 @@ foreach ($products as $product) {
 }
 $cartCount = count(getCart());
 $currentUser = getCurrentUser();
+$search = trim($_GET['search'] ?? '');
+$displayProducts = array_filter($products, static function (array $product) use ($search): bool {
+    if ($search === '') {
+        return true;
+    }
+
+    $haystack = strtolower(implode(' ', [
+        $product['id'] ?? '',
+        $product['name'] ?? '',
+        $product['category'] ?? '',
+        $product['barcode'] ?? '',
+    ]));
+    return str_contains($haystack, strtolower($search));
+});
+$inventoryAlerts = getInventoryAlerts($products);
+$today = date('Y-m-d');
+$todayOrders = 0;
+$todaySales = 0;
+foreach (loadOrders() as $order) {
+    if (substr((string)($order['created_at'] ?? ''), 0, 10) === $today) {
+        $todayOrders++;
+        $todaySales += (float)($order['total'] ?? 0);
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mini Pharmacy POS</title>
+    <title>Ingyin Pharmacy</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -115,7 +147,7 @@ $currentUser = getCurrentUser();
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div>
-                    <h1>Mini Pharmacy POS</h1>
+                    <h1>Ingyin Pharmacy</h1>
                     <p>Admin Dashboard</p>
                 </div>
                 <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle menu">☰</button>
@@ -156,12 +188,62 @@ $currentUser = getCurrentUser();
                 <?php endif; ?>
             </section>
 
-            <section class="card wide">
-                <div class="card-header">
-                    <h2>Products</h2>
-                    <?php if (userHasPermission('manage_stock')): ?>
-                        <button type="button" class="btn" id="openCreateModalBtn">Add Product</button>
+            <section class="dashboard-stats" aria-label="Daily pharmacy summary">
+                <div class="stat-card">
+                    <span>Products</span>
+                    <strong><?= count($products) ?></strong>
+                </div>
+                <div class="stat-card">
+                    <span>Low Stock</span>
+                    <strong><?= count($inventoryAlerts['low_stock']) ?></strong>
+                </div>
+                <div class="stat-card">
+                    <span>Today's Sales</span>
+                    <strong><?= formatCurrency($todaySales) ?></strong>
+                </div>
+                <div class="stat-card">
+                    <span>Today's Orders</span>
+                    <strong><?= $todayOrders ?></strong>
+                </div>
+            </section>
+
+            <?php if ($inventoryAlerts['low_stock'] || $inventoryAlerts['expired'] || $inventoryAlerts['expiring_soon']): ?>
+                <section class="inventory-alerts" aria-label="Inventory alerts">
+                    <h2>Inventory Alerts</h2>
+                    <?php if ($inventoryAlerts['expired']): ?>
+                        <div class="alert error">
+                            <strong>Expired products:</strong>
+                            <?= htmlspecialchars(implode(', ', array_column($inventoryAlerts['expired'], 'name'))) ?>
+                        </div>
                     <?php endif; ?>
+                    <?php if ($inventoryAlerts['low_stock']): ?>
+                        <div class="alert warning">
+                            <strong>Low stock:</strong>
+                            <?= htmlspecialchars(implode(', ', array_column($inventoryAlerts['low_stock'], 'name'))) ?>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($inventoryAlerts['expiring_soon']): ?>
+                        <div class="alert warning">
+                            <strong>Expiring within 30 days:</strong>
+                            <?= htmlspecialchars(implode(', ', array_column($inventoryAlerts['expiring_soon'], 'name'))) ?>
+                        </div>
+                    <?php endif; ?>
+                </section>
+            <?php endif; ?>
+
+            <section class="card wide">
+                <div class="card-header product-list-header">
+                    <h2>Products</h2>
+                    <div class="inline-actions">
+                        <form method="get" class="product-search">
+                            <input type="search" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search name, ID or barcode" aria-label="Search products">
+                            <button type="submit" class="secondary">Search</button>
+                        </form>
+                        <?php if ($search !== ''): ?><a class="btn secondary" href="index.php">Clear</a><?php endif; ?>
+                        <?php if (userHasPermission('manage_stock')): ?>
+                            <button type="button" class="btn" id="openCreateModalBtn">Add Product</button>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <table class="table">
                     <thead>
@@ -174,7 +256,7 @@ $currentUser = getCurrentUser();
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($products as $product): ?>
+                        <?php foreach ($displayProducts as $product): ?>
                             <tr>
                                 <td><?= htmlspecialchars($product['name']) ?></td>
                                 <td><?= htmlspecialchars($product['category']) ?></td>
@@ -185,14 +267,8 @@ $currentUser = getCurrentUser();
                                         <?php if (userHasPermission('manage_cart')): ?>
                                             <form method="post" class="inline-actions">
                                                 <input type="hidden" name="product_id" value="<?= htmlspecialchars($product['id']) ?>">
-                                                <select name="quantity">
-                                                    <option value="1">1</option>
-                                                    <option value="2">2</option>
-                                                    <option value="3">3</option>
-                                                    <option value="4">4</option>
-                                                    <option value="5">5</option>
-                                                </select>
-                                                <button type="submit" name="add_to_cart">Add</button>
+                                                <input type="number" name="quantity" value="1" min="1" max="<?= max(1, (int)($product['stock'] ?? 0)) ?>" aria-label="Quantity for <?= htmlspecialchars($product['name']) ?>">
+                                                <button type="submit" name="add_to_cart">Add to Cart</button>
                                             </form>
                                         <?php endif; ?>
                                         <?php if (userHasPermission('manage_stock')): ?>
@@ -205,7 +281,9 @@ $currentUser = getCurrentUser();
                                                 data-supplier="<?= htmlspecialchars($product['supplier'] ?? '', ENT_QUOTES) ?>"
                                                 data-expiry-date="<?= htmlspecialchars($product['expiry_date'] ?? '', ENT_QUOTES) ?>"
                                                 data-unit-type="<?= htmlspecialchars($product['unit_type'] ?? 'each', ENT_QUOTES) ?>"
-                                                data-stock="<?= htmlspecialchars((string)$product['stock'], ENT_QUOTES) ?>">
+                                                data-stock="<?= htmlspecialchars((string)$product['stock'], ENT_QUOTES) ?>"
+                                                data-reorder-level="<?= htmlspecialchars((string)getProductReorderLevel($product), ENT_QUOTES) ?>"
+                                                data-barcode="<?= htmlspecialchars($product['barcode'] ?? '', ENT_QUOTES) ?>">
                                                 Edit
                                             </button>
                                             <form method="post" onsubmit="return confirm('Move this product to temporary delete?');" class="inline-actions">
@@ -239,6 +317,10 @@ $currentUser = getCurrentUser();
                     <label>
                         Product Name
                         <input type="text" name="name" id="productNameInput" required>
+                    </label>
+                    <label>
+                        Barcode
+                        <input type="text" name="barcode" id="productBarcodeInput" inputmode="numeric">
                     </label>
                     <label>
                         Category
@@ -276,6 +358,10 @@ $currentUser = getCurrentUser();
                         Stock
                         <input type="number" name="stock" id="productStockInput" required>
                     </label>
+                    <label>
+                        Reorder Level
+                        <input type="number" name="reorder_level" id="productReorderLevelInput" min="0" value="10" required>
+                    </label>
                     <div class="actions">
                         <button type="button" class="secondary" id="cancelProductModal">Cancel</button>
                         <button type="submit" name="create_product" id="productSubmitBtn">Save Product</button>
@@ -303,6 +389,8 @@ $currentUser = getCurrentUser();
         const productExpiryInput = document.getElementById('productExpiryInput');
         const productUnitTypeInput = document.getElementById('productUnitTypeInput');
         const productStockInput = document.getElementById('productStockInput');
+        const productReorderLevelInput = document.getElementById('productReorderLevelInput');
+        const productBarcodeInput = document.getElementById('productBarcodeInput');
 
         function generateProductId(category) {
             const slug = (category || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'product';
@@ -330,6 +418,8 @@ $currentUser = getCurrentUser();
                 productExpiryInput.value = product.expiryDate;
                 productUnitTypeInput.value = product.unitType;
                 productStockInput.value = product.stock;
+                productReorderLevelInput.value = product.reorderLevel;
+                productBarcodeInput.value = product.barcode;
             } else {
                 productModalTitle.textContent = 'Add Product';
                 productSubmitBtn.textContent = 'Save Product';
@@ -345,6 +435,8 @@ $currentUser = getCurrentUser();
                 productExpiryInput.value = '';
                 productUnitTypeInput.value = 'each';
                 productStockInput.value = '';
+                productReorderLevelInput.value = '10';
+                productBarcodeInput.value = '';
             }
 
             productModal.style.display = 'flex';
@@ -369,6 +461,8 @@ $currentUser = getCurrentUser();
                     expiryDate: button.dataset.expiryDate,
                     unitType: button.dataset.unitType,
                     stock: button.dataset.stock,
+                    reorderLevel: button.dataset.reorderLevel,
+                    barcode: button.dataset.barcode,
                 });
             });
         });

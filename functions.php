@@ -97,6 +97,49 @@ function formatStockValue(array $product): string {
     return $stock . ' ' . getProductUnitLabel($product);
 }
 
+function getProductReorderLevel(array $product): int {
+    return max(0, (int)($product['reorder_level'] ?? 10));
+}
+
+function getProductExpiryDays(array $product): ?int {
+    $expiryDate = trim((string)($product['expiry_date'] ?? ''));
+    if ($expiryDate === '') {
+        return null;
+    }
+
+    $expiry = DateTime::createFromFormat('!Y-m-d', $expiryDate);
+    $today = new DateTime('today');
+    if (!$expiry || $expiry->format('Y-m-d') !== $expiryDate) {
+        return null;
+    }
+
+    return (int)$today->diff($expiry)->format('%r%a');
+}
+
+function getInventoryAlerts(array $products, int $expiryWindowDays = 30): array {
+    $alerts = [
+        'low_stock' => [],
+        'expired' => [],
+        'expiring_soon' => [],
+    ];
+
+    foreach ($products as $product) {
+        $stock = max(0, (int)($product['stock'] ?? 0));
+        $expiryDays = getProductExpiryDays($product);
+
+        if ($stock <= getProductReorderLevel($product)) {
+            $alerts['low_stock'][] = $product;
+        }
+        if ($expiryDays !== null && $expiryDays < 0) {
+            $alerts['expired'][] = $product;
+        } elseif ($expiryDays !== null && $expiryDays <= $expiryWindowDays) {
+            $alerts['expiring_soon'][] = $product;
+        }
+    }
+
+    return $alerts;
+}
+
 function generateProductId(string $category, array $existingProducts = []): string {
     $base = getCategorySlug($category);
     $prefix = $base !== '' ? $base : 'product';
@@ -422,17 +465,28 @@ function saveCart(array $cart): void {
     $_SESSION['cart'] = $cart;
 }
 
-function addToCart(string $productId, int $quantity = 1): void {
+function addToCart(string $productId, int $quantity = 1): bool {
     $product = getProductById($productId);
     if (!$product) {
-        return;
+        return false;
+    }
+
+    $availableStock = max(0, (int)($product['stock'] ?? 0));
+    $expiryDays = getProductExpiryDays($product);
+    if ($quantity < 1 || $availableStock < 1 || ($expiryDays !== null && $expiryDays < 0)) {
+        return false;
     }
 
     $cart = getCart();
     $currentQty = isset($cart[$productId]) ? (int)$cart[$productId] : 0;
-    $cart[$productId] = $currentQty + max(1, $quantity);
+    if ($currentQty + $quantity > $availableStock) {
+        return false;
+    }
+
+    $cart[$productId] = $currentQty + $quantity;
     saveCart($cart);
-    logActivity('add_to_cart', ['product_id' => $productId, 'quantity' => max(1, $quantity)]);
+    logActivity('add_to_cart', ['product_id' => $productId, 'quantity' => $quantity]);
+    return true;
 }
 
 function updateCartItem(string $productId, int $quantity): void {
@@ -495,7 +549,7 @@ function getCartTotal(): float {
 }
 
 function formatCurrency(float $amount): string {
-    return '₱' . number_format($amount, 2);
+    return '$' . number_format($amount, 2);
 }
 
 function getRolesConfig(): array {

@@ -44,7 +44,7 @@ $currentUser = getCurrentUser();
         </div>
         <div class="invoice-head">
             <div>
-                <h1>Mini Pharmacy POS</h1>
+                <h1>Ingyin Pharmacy</h1>
                 <p>Pharmacy sales invoice</p>
             </div>
             <div>
@@ -78,7 +78,17 @@ $currentUser = getCurrentUser();
                 <?php endforeach; ?>
             </tbody>
         </table>
-        <div class="invoice-total">Total: <?= formatCurrency((float)$order['total']) ?></div>
+        <div class="invoice-total">
+            <?php if (isset($order['subtotal'])): ?>
+                <div>Subtotal: <?= formatCurrency((float)$order['subtotal']) ?></div>
+                <div>Discount: <?= formatCurrency((float)($order['discount'] ?? 0)) ?></div>
+            <?php endif; ?>
+            <div>Total: <?= formatCurrency((float)$order['total']) ?></div>
+            <?php if (($order['payment_method'] ?? '') === 'Cash' && isset($order['cash_received'])): ?>
+                <div>Cash Received: <?= formatCurrency((float)$order['cash_received']) ?></div>
+                <div>Change: <?= formatCurrency((float)($order['change_amount'] ?? 0)) ?></div>
+            <?php endif; ?>
+        </div>
         <p class="no-print"><a href="orders.php">Back to sales history</a></p>
     </div>
 </body>
